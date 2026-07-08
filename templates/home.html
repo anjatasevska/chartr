@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Chartr{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}<div class="page-heading-sub">Real-time crypto market intelligence</div>{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h1 class="hero-title">
+        Read the market<br><span class="highlight">before you trade.</span>
+    </h1>
+    <p class="hero-desc">
+        Forecasts, momentum signals, chain activity, and news mood — pulled together into one clear picture.
+    </p>
+    <div class="hero-actions">
+        <a href="{% url 'prediction_select' %}" class="btn btn-primary">AI Prediction</a>
+        <a href="{% url 'technical_analysis' %}" class="btn btn-secondary">Technical Analysis</a>
+        <a href="{% url 'onchain_dashboard' %}" class="btn btn-ghost">On-Chain & Sentiment</a>
+    </div>
+</div>
+
+<div class="grid-2" style="margin-top:8px;">
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <div class="card-title">Top Coins</div>
+                <div class="card-subtitle">Live market prices</div>
+            </div>
+            <a href="{% url 'coin_list' %}" class="link-arrow">View all →</a>
+        </div>
+        <div id="coinsList">
+            {% for coin in top_coins %}
+                <a href="{% url 'coin_detail' coin.id %}" class="coin-row-item">
+                    {% with sym=coin.symbol|upper %}
+                    <div class="coin-avatar" data-symbol="{{ sym }}">{{ sym|slice:":1" }}</div>
+                    <div class="coin-info">
+                        <div class="coin-name">{{ coin.name }}</div>
+                        <div class="coin-symbol">{{ sym }}</div>
+                    </div>
+                    <div class="coin-price">
+                        ${{ coin.current_price|floatformat:2 }}<br>
+                        <span class="{% if coin.price_change_percentage_24h >= 0 %}text-positive{% else %}text-negative{% endif %}" style="font-size:0.78rem;">
+                            {{ coin.price_change_percentage_24h|floatformat:2 }}%
+                        </span>
+                    </div>
+                    {% endwith %}
+                </a>
+            {% empty %}
+                <div class="empty-state" style="padding:24px;">
+                    Couldn't load coins right now. Try refreshing in a moment.
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <div class="card-title">Latest News</div>
+                <div class="card-subtitle">Crypto market headlines</div>
+            </div>
+            <a href="{% url 'crypto_news' %}" class="link-arrow">All news →</a>
+        </div>
+
+        {% if news_preview %}
+            {% for n in news_preview %}
+                <div class="news-preview-item">
+                    <div class="news-source">{{ n.source_name }}</div>
+                    <div class="news-title-sm">{{ n.title }}</div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state" style="padding:24px;">
+                No news available right now.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const coinColors = {
+        'BTC': '#f7931a', 'ETH': '#627eea', 'USDT': '#26a17b',
+        'BNB': '#f3ba2f', 'XRP': '#23292f', 'SOL': '#9945ff',
+        'ADA': '#0033ad', 'DOGE': '#c2a633', 'DOT': '#e6007a', 'MATIC': '#8247e5'
+    };
+
+    document.querySelectorAll('.coin-avatar[data-symbol]').forEach(el => {
+        el.style.background = coinColors[el.dataset.symbol] || '#6366f1';
+    });
+</script>
+{% endblock %}

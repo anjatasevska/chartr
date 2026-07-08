@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if coin %}{{ coin.name }} | Chartr{% else %}Coin Details | Chartr{% endif %}
+{% endblock %}
+{% block page_title %}
+    {% if coin %}{{ coin.name }}{% else %}Coin Details{% endif %}
+{% endblock %}
+{% block page_subtitle %}
+    {% if coin %}<div class="page-heading-sub">{{ coin.symbol|upper }} · Live chart & stats</div>{% endif %}
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'home' %}" class="btn btn-ghost">← Back</a>
+{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+{% if rate_limited %}
+    <div class="alert alert-warning">
+        API rate limit reached. Please refresh in a few seconds.
+    </div>
+{% endif %}
+
+{% if coin %}
+<div class="grid-2">
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">Price Chart</div>
+            <div class="time-chips">
+                {% for opt in range_options %}
+                    <a href="?range={{ opt }}"
+                       class="time-chip {% if opt == active_range %}active{% endif %}">
+                        {{ opt }}
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="chart-container">
+            <canvas id="priceChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title" style="margin-bottom:16px;">Market Stats</div>
+
+        <div class="stat-value" style="font-size:2rem;margin-bottom:4px;">
+            ${{ coin.quotes.USD.price|floatformat:2 }}
+        </div>
+
+        {% with change=coin.quotes.USD.percent_change_24h %}
+            <div style="margin-bottom:20px;">
+                24h:
+                <span class="{% if change > 0 %}text-positive{% else %}text-negative{% endif %}">
+                    {{ change|floatformat:2 }}%
+                </span>
+            </div>
+        {% endwith %}
+
+        <div class="metric-row">
+            <span class="label">Change 1h</span>
+            <span class="value">{{ coin.quotes.USD.percent_change_1h|floatformat:2 }}%</span>
+        </div>
+        <div class="metric-row">
+            <span class="label">Change 7d</span>
+            <span class="value">{{ coin.quotes.USD.percent_change_7d|floatformat:2 }}%</span>
+        </div>
+        <div class="metric-row">
+            <span class="label">Volume (24h)</span>
+            <span class="value">${{ coin.quotes.USD.volume_24h|floatformat:0 }}</span>
+        </div>
+        <div class="metric-row">
+            <span class="label">Market Cap</span>
+            <span class="value">${{ coin.quotes.USD.market_cap|floatformat:0 }}</span>
+        </div>
+        <div class="metric-row">
+            <span class="label">ATH Price</span>
+            <span class="value">${{ coin.quotes.USD.ath_price|floatformat:2 }}</span>
+        </div>
+        <div class="metric-row">
+            <span class="label">From ATH</span>
+            <span class="value">{{ coin.quotes.USD.percent_from_price_ath|floatformat:2 }}%</span>
+        </div>
+
+        <p style="margin-top:16px;font-size:0.75rem;color:var(--text-muted);">
+            Chart data: CoinPaprika historical tickers.
+        </p>
+    </div>
+</div>
+{% else %}
+    <div class="empty-state">Could not load coin data.</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if coin and not rate_limited %}
+<script>
+    const labels = {{ labels_json|safe }};
+    const closes = {{ closes_json|safe }};
+
+    const coinColors = {
+        "BTC": "#f7931a", "ETH": "#627eea", "USDT": "#26a17b",
+        "BNB": "#f3ba2f", "XRP": "#23292f", "SOL": "#9945ff"
+    };
+
+    const coinSymbol = "{{ coin.symbol|upper }}";
+    let lineColor = coinColors[coinSymbol] || "#6366f1";
+
+    if (Array.isArray(labels) && Array.isArray(closes) && labels.length && closes.length) {
+        const ctx = document.getElementById('priceChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Close price (USD)',
+                    data: closes,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    borderWidth: 2,
+                    borderColor: lineColor,
+                    backgroundColor: lineColor + '22'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'nearest', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: ctx => 'Time: ' + (ctx[0].label || ''),
+                            label: ctx => 'Price: $' + Number(ctx.raw).toLocaleString()
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { font: { size: 10 }, color: '#94a3b8', maxRotation: 0, autoSkip: true },
+                        grid: { color: '#f1f5f9' }
+                    },
+                    y: {
+                        ticks: {
+                            font: { size: 10 }, color: '#94a3b8',
+                            callback: v => '$' + v.toLocaleString()
+                        },
+                        grid: { color: '#f1f5f9' }
+                    }
+                }
+            }
+        });
+    }
+</script>
+{% endif %}
+{% endblock %}

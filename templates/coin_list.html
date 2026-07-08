@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}All Coins | Chartr{% endblock %}
+{% block page_title %}All Coins{% endblock %}
+{% block page_subtitle %}<div class="page-heading-sub">Live market data from CoinGecko</div>{% endblock %}
+
+{% block content %}
+<div class="card">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Symbol</th>
+                <th>Price (USD)</th>
+                <th>24h Change</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for coin in coins %}
+            <tr onclick="window.location.href='{% url 'coin_detail' coin.id %}'">
+                <td><strong>{{ coin.name }}</strong></td>
+                <td>{{ coin.symbol|upper }}</td>
+                <td class="mono">${{ coin.current_price }}</td>
+                <td>
+                    <span class="{% if coin.price_change_percentage_24h > 0 %}text-positive{% else %}text-negative{% endif %}">
+                        {{ coin.price_change_percentage_24h|floatformat:2 }}%
+                    </span>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,23 @@
+databases:
+  - name: chartr-db
+    databaseName: chartr
+    plan: free
+
+services:
+  - type: web
+    name: chartr
+    runtime: python
+    plan: free
+    buildCommand: "chmod +x build.sh && ./build.sh"
+    startCommand: "gunicorn chartr.wsgi:application --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "0"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: chartr-db
+          property: connectionString

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}AI Prediction | Chartr{% endblock %}
+{% block page_title %}AI Prediction{% endblock %}
+{% block page_subtitle %}<div class="page-heading-sub">LSTM price forecasting model</div>{% endblock %}
+
+{% block content %}
+<div style="max-width:480px;margin:40px auto;">
+    <div class="card">
+        <div class="card-title" style="margin-bottom:8px;">Select a Coin</div>
+        <p style="font-size:0.875rem;color:var(--text-muted);margin-bottom:24px;">
+            Choose a cryptocurrency to run the LSTM prediction model on historical OHLCV data.
+        </p>
+
+        <form method="GET" onsubmit="goToPrediction(event)">
+            <div class="form-group">
+                <label class="form-label">Cryptocurrency</label>
+                <select id="symbol" class="form-select">
+                    {% for s in symbols %}
+                        <option value="{{ s }}">{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">
+                Run Prediction →
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function goToPrediction(e) {
+    e.preventDefault();
+    const symbol = document.getElementById("symbol").value;
+    window.location.href = `/prediction/${symbol}/`;
+}
+</script>
+{% endblock %}

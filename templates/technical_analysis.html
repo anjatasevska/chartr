@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Technical Analysis | Chartr{% endblock %}
+{% block page_title %}Technical Analysis{% endblock %}
+{% block page_subtitle %}<div class="page-heading-sub">10 indicators · BUY / SELL / HOLD signals</div>{% endblock %}
+
+{% block content %}
+<div class="analysis-grid">
+    <div class="card">
+        <div class="card-title" style="margin-bottom:20px;">Settings</div>
+
+        <div class="form-group">
+            <label class="form-label">Cryptocurrency</label>
+            <select id="coin" class="form-select">
+                {% for c in coins %}
+                    <option value="{{ c }}">{{ c }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Timeframe</label>
+            <select id="tf" class="form-select">
+                <option value="1d">1 Day</option>
+                <option value="1w">1 Week</option>
+                <option value="1m">1 Month</option>
+            </select>
+        </div>
+
+        <button id="runBtn" class="btn btn-primary" style="width:100%;">Run Analysis</button>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">Results</div>
+            <span id="status" style="font-size:0.8rem;color:var(--text-muted);">Ready</span>
+        </div>
+
+        <div class="final-signal">
+            <div>
+                <strong>Final Signal: <span id="finalText">—</span></strong><br>
+                <span id="finalMeta" style="font-size:0.8rem;color:var(--text-muted);">Majority of indicators</span>
+            </div>
+            <span id="finalChip" class="chip chip-hold">—</span>
+        </div>
+
+        <div id="list"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const runBtn = document.getElementById("runBtn");
+    const statusEl = document.getElementById("status");
+    const listEl = document.getElementById("list");
+    const finalText = document.getElementById("finalText");
+    const finalChip = document.getElementById("finalChip");
+    const finalMeta = document.getElementById("finalMeta");
+
+    function chipClass(s) {
+        return s === "BUY" ? "chip chip-buy" : s === "SELL" ? "chip chip-sell" : "chip chip-hold";
+    }
+
+    async function runAnalysis() {
+        const coin = document.getElementById("coin").value;
+        const tf = document.getElementById("tf").value;
+
+        runBtn.disabled = true;
+        statusEl.textContent = "Loading…";
+
+        try {
+            const res = await fetch(`/api/analysis/${coin}/?tf=${tf}`);
+            const data = await res.json();
+
+            finalText.textContent = data.final_signal;
+            finalChip.textContent = data.final_signal;
+            finalChip.className = chipClass(data.final_signal);
+            finalMeta.textContent = `BUY ${data.breakdown.BUY} · SELL ${data.breakdown.SELL} · HOLD ${data.breakdown.HOLD}`;
+
+            listEl.innerHTML = "";
+            Object.entries(data.indicators).forEach(([k, v]) => {
+                const row = document.createElement("div");
+                row.className = "result-row";
+                row.innerHTML = `
+                    <div style="font-weight:600;font-size:0.9rem;">${k.toUpperCase()}</div>
+                    <div style="font-family:var(--mono);font-size:0.85rem;">${v.value.toFixed(4)}</div>
+                    <span class="${chipClass(v.signal)}">${v.signal}</span>
+                `;
+                listEl.appendChild(row);
+            });
+
+            statusEl.textContent = "Done";
+        } catch {
+            statusEl.textContent = "Error";
+        } finally {
+            runBtn.disabled = false;
+        }
+    }
+
+    runBtn.addEventListener("click", runAnalysis);
+</script>
+{% endblock %}

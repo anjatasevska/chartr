@@ -1,0 +1,24 @@
+# Slim dependency set for hosting the web app on Render.
+# Heavy/optional packages (tensorflow, scrapy, xgboost, yfinance, ...) are left out:
+# the AI Prediction page automatically falls back to the lightweight NumPy model
+# in core/simple_model.py when TensorFlow is not installed.
+
+django==5.1
+djangorestframework==3.15
+python-decouple==3.8
+python-dotenv
+gunicorn==22.0.0
+whitenoise==6.7.0
+django-cors-headers
+requests
+
+# Database
+psycopg2-binary
+dj-database-url
+
+# Analysis (used by technical analysis, on-chain, sentiment, prediction fallback)
+pandas
+numpy
+ta
+textblob
+joblib

@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}{{ symbol }} Prediction | Chartr{% endblock %}
+{% block page_title %}{{ symbol }} — Price Prediction{% endblock %}
+{% block page_subtitle %}<div class="page-heading-sub">Real vs predicted closing prices</div>{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'prediction_select' %}" class="btn btn-ghost">← Back</a>
+{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+{% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    <a href="{% url 'prediction_select' %}" class="btn btn-secondary">← Choose another coin</a>
+{% else %}
+<div class="grid-auto" style="margin-bottom:24px;">
+    <div class="stat-card">
+        <div class="stat-label">RMSE</div>
+        <div class="stat-value">{{ rmse|floatformat:2 }}</div>
+        <div class="stat-sub">Lower is better</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">R² Score</div>
+        <div class="stat-value">{{ r2|floatformat:3 }}</div>
+        <div class="stat-sub">Closer to 1 is better</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Data Points</div>
+        <div class="stat-value">{{ points }}</div>
+        <div class="stat-sub">Validation samples</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title" style="margin-bottom:8px;">Real vs Predicted Prices</div>
+    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:16px;">
+        {{ model_name }} model trained on historical OHLCV data.
+    </p>
+    <div class="chart-container">
+        <canvas id="predictionChart"></canvas>
+    </div>
+    <p style="margin-top:12px;font-size:0.8rem;color:var(--text-muted);">
+        <span style="color:#27187e;">■</span> Real price &nbsp;
+        <span style="color:#f72585;">■</span> Predicted price
+    </p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if not error %}
+<script>
+    const realData = {{ real|safe }};
+    const predictedData = {{ predictions|safe }};
+    const labels = realData.map((_, idx) => idx + 1);
+
+    const ctx = document.getElementById('predictionChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Real Price',
+                    data: realData,
+                    borderColor: '#27187e',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.2
+                },
+                {
+                    label: 'Predicted Price',
+                    data: predictedData,
+                    borderColor: '#f72585',
+                    borderWidth: 2,
+                    borderDash: [4, 4],
+                    pointRadius: 0,
+                    tension: 0.2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { labels: { color: '#64748b' } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}`
+                    }
+                }
+            },
+            scales: {
+                x: { ticks: { color: '#94a3b8' }, grid: { color: '#f1f5f9' } },
+                y: { ticks: { color: '#94a3b8' }, grid: { color: '#f1f5f9' } }
+            }
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

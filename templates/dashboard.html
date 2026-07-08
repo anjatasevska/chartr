@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}On-Chain Analysis | Chartr{% endblock %}
+{% block page_title %}On-Chain & Sentiment{% endblock %}
+{% block page_subtitle %}<div class="page-heading-sub">AI trading signals from on-chain data and news sentiment</div>{% endblock %}
+
+{% block content %}
+<div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:28px;flex-wrap:wrap;">
+    <div class="form-group" style="margin:0;flex:1;min-width:220px;max-width:360px;">
+        <label class="form-label">Select Coin</label>
+        <select id="coinSelect" class="form-select">
+            <option value="bitcoin|BTC">Bitcoin (BTC)</option>
+            <option value="ethereum|ETH">Ethereum (ETH)</option>
+            <option value="tether|USDT">Tether (USDT)</option>
+            <option value="binancecoin|BNB">Binance Coin (BNB)</option>
+            <option value="solana|SOL">Solana (SOL)</option>
+            <option value="ripple|XRP">XRP (XRP)</option>
+            <option value="usd-coin|USDC">USD Coin (USDC)</option>
+            <option value="cardano|ADA">Cardano (ADA)</option>
+            <option value="avalanche-2|AVAX">Avalanche (AVAX)</option>
+            <option value="dogecoin|DOGE">Dogecoin (DOGE)</option>
+            <option value="polkadot|DOT">Polkadot (DOT)</option>
+            <option value="tron|TRX">TRON (TRX)</option>
+            <option value="chainlink|LINK">Chainlink (LINK)</option>
+            <option value="matic-network|MATIC">Polygon (MATIC)</option>
+            <option value="shiba-inu|SHIB">Shiba Inu (SHIB)</option>
+            <option value="litecoin|LTC">Litecoin (LTC)</option>
+            <option value="uniswap|UNI">Uniswap (UNI)</option>
+            <option value="cosmos|ATOM">Cosmos (ATOM)</option>
+            <option value="stellar|XLM">Stellar (XLM)</option>
+            <option value="monero|XMR">Monero (XMR)</option>
+        </select>
+    </div>
+    <button class="btn btn-primary" onclick="runAnalysis()" id="analyzeBtn">Analyze</button>
+</div>
+
+<div id="loading" style="display:none;">
+    <div class="loading-state">
+        <div class="spinner"></div>
+        Analyzing market data… This may take 10–15 seconds.
+    </div>
+</div>
+
+<div id="error" class="alert alert-error" style="display:none;"></div>
+
+<div id="dashboard" style="display:none;">
+    <div class="signal-banner">
+        <div style="font-size:0.85rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">
+            AI Trading Signal
+        </div>
+        <div class="signal-action" id="signalAction">—</div>
+        <div class="confidence-bar">
+            <div class="confidence-fill" id="confidenceBar" style="width:0%"></div>
+        </div>
+        <div style="color:var(--text-muted);font-size:0.9rem;">
+            Confidence: <strong id="signalConfidence" style="color:var(--text);">—</strong>
+        </div>
+        <p id="signalReasoning" style="color:var(--text-muted);margin-top:16px;font-size:0.9rem;">—</p>
+    </div>
+
+    <div class="grid-auto">
+        <div class="card">
+            <div class="card-title" style="margin-bottom:16px;">On-Chain Metrics</div>
+            <div id="onchainMetrics"></div>
+        </div>
+        <div class="card">
+            <div class="card-title" style="margin-bottom:16px;">Sentiment Analysis</div>
+            <div id="sentimentAnalysis"></div>
+        </div>
+        <div class="card">
+            <div class="card-title" style="margin-bottom:16px;">Exchange Activity</div>
+            <div id="exchangeFlows"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const API_BASE = window.location.origin + '/api';
+
+    function showLoading() {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('dashboard').style.display = 'none';
+        document.getElementById('error').style.display = 'none';
+        document.getElementById('analyzeBtn').disabled = true;
+    }
+
+    function hideLoading() {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('analyzeBtn').disabled = false;
+    }
+
+    function showError(message) {
+        const errorDiv = document.getElementById('error');
+        errorDiv.innerHTML = '<strong>Error:</strong> ' + message;
+        errorDiv.style.display = 'block';
+        hideLoading();
+    }
+
+    function formatNumber(num) {
+        if (num >= 1e9) return '$' + (num / 1e9).toFixed(2) + 'B';
+        if (num >= 1e6) return '$' + (num / 1e6).toFixed(2) + 'M';
+        if (num >= 1e3) return '$' + (num / 1e3).toFixed(2) + 'K';
+        return '$' + num.toFixed(2);
+    }
+
+    async function runAnalysis() {
+        showLoading();
+        const select = document.getElementById('coinSelect');
+        const [coinId, symbol] = select.value.split('|');
+
+        try {
+            const response = await fetch(
+                `${API_BASE}/complete-analysis?coin=${coinId}&symbol=${symbol}&query=${coinId}`
+            );
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+            const data = await response.json();
+            if (!data.success) throw new Error(data.error || 'Analysis failed');
+
+            displayResults(data.analysis);
+        } catch (error) {
+            showError(error.message + ' — Make sure the Django server is running.');
+        }
+    }
+
+    function displayResults(analysis) {
+        const signal = analysis.trading_signal;
+        document.getElementById('signalAction').textContent = signal.action;
+        document.getElementById('signalAction').className = 'signal-action ' + signal.action.toLowerCase();
+        document.getElementById('confidenceBar').style.width = signal.confidence + '%';
+        document.getElementById('signalConfidence').textContent = signal.confidence.toFixed(1) + '%';
+        document.getElementById('signalReasoning').textContent = signal.reasoning;
+
+        const metrics = analysis.onchain_metrics;
+        document.getElementById('onchainMetrics').innerHTML = `
+            <div class="metric-row"><span class="label">Market Cap</span><span class="value">${formatNumber(metrics.market_cap)}</span></div>
+            <div class="metric-row"><span class="label">24h Volume</span><span class="value">${formatNumber(metrics.total_volume_24h)}</span></div>
+            <div class="metric-row"><span class="label">NVT Ratio</span><span class="value">${metrics.nvt_ratio.toFixed(2)}</span></div>
+            <div class="metric-row"><span class="label">Volatility (30d)</span><span class="value">${metrics.volatility_30d.toFixed(2)}%</span></div>
+            <div class="metric-row"><span class="label">Price Change 24h</span>
+                <span class="value ${metrics.price_change_24h > 0 ? 'text-positive' : 'text-negative'}">
+                    ${metrics.price_change_24h > 0 ? '+' : ''}${metrics.price_change_24h.toFixed(2)}%
+                </span>
+            </div>`;
+
+        const sentiment = analysis.sentiment;
+        const sentimentClass = sentiment.classification === 'bullish' ? 'badge-positive'
+            : sentiment.classification === 'bearish' ? 'badge-negative' : 'badge';
+        document.getElementById('sentimentAnalysis').innerHTML = `
+            <div class="metric-row"><span class="label">Sentiment Score</span><span class="value">${sentiment.score.toFixed(1)}/100</span></div>
+            <div class="metric-row"><span class="label">Classification</span><span class="badge ${sentimentClass}">${sentiment.classification}</span></div>
+            <div class="metric-row"><span class="label">Positive News</span><span class="value text-positive">${(sentiment.positive_ratio * 100).toFixed(1)}%</span></div>
+            <div class="metric-row"><span class="label">Negative News</span><span class="value text-negative">${(sentiment.negative_ratio * 100).toFixed(1)}%</span></div>`;
+
+        const exchange = analysis.exchange_flows;
+        if (exchange && exchange.top_exchange) {
+            document.getElementById('exchangeFlows').innerHTML = `
+                <div class="metric-row"><span class="label">Total Volume</span><span class="value">${formatNumber(exchange.total_volume)}</span></div>
+                <div class="metric-row"><span class="label">Top Exchange</span><span class="value">${exchange.top_exchange}</span></div>`;
+        }
+
+        document.getElementById('dashboard').style.display = 'block';
+        hideLoading();
+    }
+</script>
+{% endblock %}

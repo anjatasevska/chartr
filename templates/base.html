@@ -1,0 +1,78 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Chartr{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    {% block extra_css %}{% endblock %}
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <a href="{% url 'home' %}">
+                <div class="brand-icon">◈</div>
+                <div>
+                    <div class="brand-text">Chartr</div>
+                    <div class="brand-tagline">Chart smarter</div>
+                </div>
+            </a>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">Overview</div>
+            <a href="{% url 'home' %}" class="nav-link {% if active_nav == 'home' %}active{% endif %}">
+                <span class="nav-icon">⌂</span> Dashboard
+            </a>
+            <a href="{% url 'coin_list' %}" class="nav-link {% if active_nav == 'coins' %}active{% endif %}">
+                <span class="nav-icon">◎</span> All Coins
+            </a>
+            <a href="{% url 'crypto_news' %}" class="nav-link {% if active_nav == 'news' %}active{% endif %}">
+                <span class="nav-icon">◉</span> News
+            </a>
+
+            <div class="nav-section-label">Analysis</div>
+            <a href="{% url 'technical_analysis' %}" class="nav-link {% if active_nav == 'analysis' %}active{% endif %}">
+                <span class="nav-icon">◧</span> Technical
+            </a>
+            <a href="{% url 'prediction_select' %}" class="nav-link {% if active_nav == 'prediction' %}active{% endif %}">
+                <span class="nav-icon">◈</span> AI Prediction
+            </a>
+            <a href="{% url 'onchain_dashboard' %}" class="nav-link {% if active_nav == 'onchain' %}active{% endif %}">
+                <span class="nav-icon">⬡</span> On-Chain
+            </a>
+        </nav>
+    </aside>
+
+    <div class="main-area">
+        <header class="top-header">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Menu">☰</button>
+                <div>
+                    <div class="page-heading">{% block page_title %}Dashboard{% endblock %}</div>
+                    {% block page_subtitle %}{% endblock %}
+                </div>
+            </div>
+            <div class="header-actions">
+                {% block header_actions %}
+                <div class="search-bar">
+                    <span class="search-icon">⌕</span>
+                    <input type="text" id="globalSearch" placeholder="Search coins…" autocomplete="off">
+                </div>
+                {% endblock %}
+            </div>
+        </header>
+
+        <main class="content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+
+<script src="{% static 'js/app.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

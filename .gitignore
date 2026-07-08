@@ -1,0 +1,16 @@
+# Secrets / local config
+.env
+
+# Python
+*.pyc
+__pycache__/
+.venv/
+venv/
+
+# Django
+db.sqlite3
+*.sqlite3
+staticfiles/
+
+# IDE
+.idea/

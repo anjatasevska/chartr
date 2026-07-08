@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Crypto News | Chartr{% endblock %}
+{% block page_title %}News{% endblock %}
+{% block page_subtitle %}<div class="page-heading-sub">Latest stories from top crypto media</div>{% endblock %}
+
+{% block content %}
+<div class="filter-pills">
+    <button class="filter-pill active" data-filter="all">All</button>
+    <button class="filter-pill" data-filter="BTC">Bitcoin</button>
+    <button class="filter-pill" data-filter="ETH">Ethereum</button>
+    <button class="filter-pill" data-filter="DeFi">DeFi</button>
+    <button class="filter-pill" data-filter="NFT">NFT</button>
+    <button class="filter-pill" data-filter="Regulation">Regulation</button>
+</div>
+
+{% if articles %}
+    <div class="news-grid" id="newsGrid">
+        {% for a in articles %}
+            <article class="news-card" data-categories="{{ a.categories|default:'' }}">
+                {% if a.image_full %}
+                    <img src="{{ a.image_full }}" alt="{{ a.title }}" class="news-card-img">
+                {% endif %}
+                <div class="news-card-body">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <span class="badge" style="background:var(--accent-light);color:var(--accent);">
+                            {{ a.source_name }}
+                        </span>
+                        <span style="font-size:0.75rem;color:var(--text-muted);">{{ a.published_human }}</span>
+                    </div>
+                    <h2 style="font-size:1rem;font-weight:700;margin-bottom:8px;line-height:1.4;">{{ a.title }}</h2>
+                    {% if a.body %}
+                        <p style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;margin-bottom:12px;">
+                            {{ a.body|striptags|truncatechars:140 }}
+                        </p>
+                    {% endif %}
+                    {% if a.categories_list %}
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+                            {% for c in a.categories_list %}
+                                <span class="filter-pill" style="cursor:default;font-size:0.7rem;padding:3px 10px;">{{ c }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <a href="{{ a.url }}" target="_blank" rel="noopener noreferrer" class="link-arrow">
+                        Read on source →
+                    </a>
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+    <p style="margin-top:20px;font-size:0.75rem;color:var(--text-muted);">
+        News data provided by CryptoCompare. Not financial advice.
+    </p>
+{% else %}
+    <div class="empty-state">
+        Could not load news right now. The API might be rate limited.
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const filterButtons = document.querySelectorAll(".filter-pill[data-filter]");
+    const cards = document.querySelectorAll(".news-card");
+
+    filterButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+            const filter = btn.getAttribute("data-filter");
+            filterButtons.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+
+            cards.forEach(card => {
+                const cats = (card.getAttribute("data-categories") || "").toUpperCase();
+                card.style.display = (filter === "all" || cats.includes(filter.toUpperCase())) ? "" : "none";
+            });
+        });
+    });
+</script>
+{% endblock %}
