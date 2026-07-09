@@ -17,7 +17,7 @@
 {% if articles %}
     <div class="news-grid" id="newsGrid">
         {% for a in articles %}
-            <article class="news-card" data-categories="{{ a.categories|default:'' }}">
+            <article class="news-card" data-categories="{{ a.categories|default:''|upper }}">
                 {% if a.image_full %}
                     <img src="{{ a.image_full }}" alt="{{ a.title }}" class="news-card-img">
                 {% endif %}
@@ -49,7 +49,7 @@
         {% endfor %}
     </div>
     <p style="margin-top:20px;font-size:0.75rem;color:var(--text-muted);">
-        News data provided by CryptoCompare. Not financial advice.
+        Headlines from public crypto news sources. Not financial advice.
     </p>
 {% else %}
     <div class="empty-state">
@@ -60,18 +60,33 @@
 
 {% block extra_js %}
 <script>
-    const filterButtons = document.querySelectorAll(".filter-pill[data-filter]");
+    const filterButtons = document.querySelectorAll(".filter-pills > .filter-pill[data-filter]");
     const cards = document.querySelectorAll(".news-card");
+
+    const FILTER_KEYWORDS = {
+        BTC: ["btc", "bitcoin"],
+        ETH: ["eth", "ethereum"],
+        DeFi: ["defi"],
+        NFT: ["nft"],
+        Regulation: ["regulation", "regulatory", "sec", "law", "ban"],
+    };
+
+    function cardMatches(card, filter) {
+        if (filter === "all") return true;
+        const cats = (card.getAttribute("data-categories") || "").toUpperCase();
+        if (cats.includes(filter.toUpperCase())) return true;
+        const text = card.textContent.toLowerCase();
+        const keywords = FILTER_KEYWORDS[filter] || [filter.toLowerCase()];
+        return keywords.some(kw => text.includes(kw));
+    }
 
     filterButtons.forEach(btn => {
         btn.addEventListener("click", () => {
             const filter = btn.getAttribute("data-filter");
             filterButtons.forEach(b => b.classList.remove("active"));
             btn.classList.add("active");
-
             cards.forEach(card => {
-                const cats = (card.getAttribute("data-categories") || "").toUpperCase();
-                card.style.display = (filter === "all" || cats.includes(filter.toUpperCase())) ? "" : "none";
+                card.style.display = cardMatches(card, filter) ? "" : "none";
             });
         });
     });

@@ -162,6 +162,32 @@ def fetch_coin_ohlc(coin_id, days=1):
     return safe_get(f"{API_BASE}/coins/{coin_id}/ohlc", params=params)
 
 
+NEWS_FILTER_TAGS = {
+    "BTC": ("btc", "bitcoin"),
+    "ETH": ("eth", "ethereum"),
+    "DeFi": ("defi", "decentralized finance", "decentralised finance"),
+    "NFT": ("nft", "non-fungible"),
+    "Regulation": ("regulation", "regulatory", "sec ", " lawmakers", "ban ", "banned"),
+}
+
+
+def _enrich_news_article(article):
+    """Add category tags inferred from title/body so client-side filters work."""
+    text = f"{article.get('title', '')} {article.get('body', '')} {article.get('categories', '')}".lower()
+    tags = []
+    for tag, keywords in NEWS_FILTER_TAGS.items():
+        if any(kw in text for kw in keywords):
+            tags.append(tag)
+    existing = (article.get("categories") or "").replace("|", " ").split()
+    for t in existing:
+        t_up = t.strip().upper()
+        if t_up in NEWS_FILTER_TAGS and t_up not in tags:
+            tags.append(t_up)
+    article["categories"] = "|".join(tags)
+    article["categories_list"] = tags
+    return article
+
+
 def fetch_crypto_news(limit=18):
     from django.core.cache import cache
 
@@ -178,6 +204,7 @@ def fetch_crypto_news(limit=18):
         stale = cache.get(f"{cache_key}_stale")
         return stale or []
 
+    articles = [_enrich_news_article(a) for a in articles]
     cache.set(cache_key, articles, 600)
     cache.set(f"{cache_key}_stale", articles, 86400)
     return articles
