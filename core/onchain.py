@@ -23,15 +23,17 @@ class OnChainAnalysis:
             coin_data = requests.get(
                 f"{self.base_url}/coins/{coin_id}",
                 params={'localization': 'false', 'tickers': 'false',
-                        'community_data': 'true', 'developer_data': 'true'}
+                        'community_data': 'true', 'developer_data': 'true'},
+                timeout=15,
             ).json()
 
-            time.sleep(1)
+            time.sleep(0.5)
 
             # Историски податоци
             market_data = requests.get(
                 f"{self.base_url}/coins/{coin_id}/market_chart",
-                params={'vs_currency': 'usd', 'days': days}
+                params={'vs_currency': 'usd', 'days': days},
+                timeout=15,
             ).json()
 
             # Пресметка на метрики
@@ -113,10 +115,11 @@ class OnChainAnalysis:
 
             tickers = requests.get(
                 f"{self.base_url}/coins/{coin_id}/tickers",
-                params={'depth': 'true'}
+                params={'depth': 'true'},
+                timeout=15,
             ).json()
 
-            time.sleep(1)
+            time.sleep(0.5)
 
             exchange_volumes = {}
             total_volume = 0
@@ -188,7 +191,7 @@ class SentimentAnalysis:
                 'apiKey': self.newsapi_key
             }
 
-            response = requests.get(self.newsapi_url, params=params)
+            response = requests.get(self.newsapi_url, params=params, timeout=15)
 
             if response.status_code == 200:
                 articles = response.json().get('articles', [])

@@ -9,6 +9,9 @@ pip install -r requirements-render.txt
 python manage.py collectstatic --no-input
 python manage.py migrate --no-input
 
-# Create + fill the crypto_ohlcv table so Technical Analysis and AI Prediction
-# work out of the box. Idempotent (ON CONFLICT), safe to run every deploy.
-python manage.py seed_ohlcv || echo "seed_ohlcv failed (continuing) — data may be rate-limited"
+# Seed OHLCV — retry a few times (CryptoCompare may rate-limit on first deploy).
+for attempt in 1 2 3; do
+  python manage.py seed_ohlcv --days 200 --symbols BTC ETH SOL BNB XRP ADA DOGE && break
+  echo "seed_ohlcv attempt $attempt failed, retrying in 15s..."
+  sleep 15
+done

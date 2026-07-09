@@ -11,16 +11,10 @@ Usage:
 
 import time
 
-import requests
-from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import connection
 
-DEFAULT_SYMBOLS = [
-    "BTC", "ETH", "BNB", "SOL", "XRP",
-    "ADA", "DOGE", "DOT", "LTC", "LINK",
-    "AVAX", "MATIC", "TRX", "XLM", "ATOM",
-]
+from core.market_data import DEFAULT_SYMBOLS, fetch_ohlcv_api
 
 COIN_NAMES = {
     "BTC": "Bitcoin", "ETH": "Ethereum", "BNB": "Binance Coin", "SOL": "Solana",
@@ -59,20 +53,7 @@ class Command(BaseCommand):
                             help="Symbols to seed (default: a curated top list).")
 
     def fetch_cryptocompare(self, symbol, days):
-        url = "https://min-api.cryptocompare.com/data/v2/histoday"
-        params = {"fsym": symbol, "tsym": "USD", "limit": days}
-        api_key = getattr(settings, "CRYPTOCOMPARE_API_KEY", "") or ""
-        headers = {"authorization": f"Apikey {api_key}"} if api_key else {}
-        try:
-            r = requests.get(url, params=params, headers=headers, timeout=15)
-            data = r.json()
-            if data.get("Response") != "Success":
-                return None
-            rows = data["Data"]["Data"]
-            # Drop empty leading candles (0 price)
-            return [d for d in rows if d.get("close")]
-        except requests.RequestException:
-            return None
+        return fetch_ohlcv_api(symbol, days)
 
     def handle(self, *args, **options):
         days = options["days"]

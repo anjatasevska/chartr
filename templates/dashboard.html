@@ -111,9 +111,13 @@
         const [coinId, symbol] = select.value.split('|');
 
         try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 45000);
             const response = await fetch(
-                `${API_BASE}/complete-analysis?coin=${coinId}&symbol=${symbol}&query=${coinId}`
+                `${API_BASE}/complete-analysis?coin=${coinId}&symbol=${symbol}&query=${coinId}`,
+                { signal: controller.signal }
             );
+            clearTimeout(timeout);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
             const data = await response.json();
@@ -164,5 +168,7 @@
         document.getElementById('dashboard').style.display = 'block';
         hideLoading();
     }
+
+    document.addEventListener('DOMContentLoaded', runAnalysis);
 </script>
 {% endblock %}

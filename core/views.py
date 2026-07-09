@@ -162,6 +162,13 @@ def fetch_coin_ohlc(coin_id, days=1):
 
 
 def fetch_crypto_news(limit=18):
+    from django.core.cache import cache
+
+    cache_key = f"crypto_news_{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     params = {
         "lang": "EN",
         "sortOrder": "latest",
@@ -170,17 +177,19 @@ def fetch_crypto_news(limit=18):
     }
 
     try:
-        r = requests.get(NEWS_API_URL, params=params, timeout=10)
+        r = requests.get(NEWS_API_URL, params=params, timeout=15)
         r.raise_for_status()
         raw = r.json()
     except requests.RequestException:
-        return []
+        stale = cache.get(f"{cache_key}_stale")
+        return stale or []
 
     # CryptoCompare returns Data as a list on success, but a dict/string on
     # rate-limit or error responses — guard against that so the page never 500s.
     data = raw.get("Data", [])
     if not isinstance(data, list):
-        return []
+        stale = cache.get(f"{cache_key}_stale")
+        return stale or []
 
     articles = data[:limit]
 
@@ -204,6 +213,8 @@ def fetch_crypto_news(limit=18):
         source_info = a.get("source_info") or {}
         a["source_name"] = source_info.get("name") or a.get("source") or "Crypto News"
 
+    cache.set(cache_key, articles, 600)
+    cache.set(f"{cache_key}_stale", articles, 86400)
     return articles
 
 # -------------------------------------------------
@@ -349,17 +360,14 @@ def crypto_news(request):
 
 
 from .technical_analysis import calculate_technical_indicators
+from .market_data import get_ohlcv_dataframe, list_available_symbols
 import pandas as pd
 
 
 def coin_analysis_view(request, symbol):
-    qs = CoinHistory.objects.filter(symbol=symbol.upper()).order_by('timestamp')
-    if not qs.exists():
+    df = get_ohlcv_dataframe(symbol, min_rows=30)
+    if df is None or df.empty:
         return render(request, "core/no_data.html", {"symbol": symbol})
-
-    df = pd.DataFrame(list(qs.values(
-        'timestamp', 'open', 'high', 'low', 'close', 'volume'
-    )))
 
     df_analysis = calculate_technical_indicators(df)
 
@@ -466,13 +474,9 @@ def api_technical_analysis(request, coin):
 
     symbol = coin.split("-")[0].upper()
 
-    qs = CoinHistory.objects.filter(symbol=symbol).order_by("timestamp")
-    if not qs.exists():
+    df = get_ohlcv_dataframe(symbol, min_rows=30)
+    if df is None or df.empty:
         return JsonResponse({"error": "No data"}, status=404)
-
-    df = pd.DataFrame(list(qs.values(
-        "timestamp", "open", "high", "low", "close", "volume"
-    )))
 
     df = calculate_technical_indicators(df)
     latest = df.iloc[-1]
@@ -533,12 +537,7 @@ def api_technical_analysis(request, coin):
 
 
 def technical_analysis_page(request):
-    coins = (
-        CoinHistory.objects
-        .values_list("symbol", flat=True)
-        .distinct()
-        .order_by("symbol")
-    )
+    coins = list_available_symbols()
     return render(request, "technical_analysis.html", {
         "coins": coins
     })
@@ -551,20 +550,14 @@ def coin_prediction_view(request, symbol):
     # Нормализирај symbol
     symbol = symbol.upper()
 
-    # Земи податоци од база (сортирани по timestamp)
-    qs = CoinHistory.objects.filter(symbol=symbol).order_by('timestamp')
+    df = get_ohlcv_dataframe(symbol, min_rows=50)
 
-    if not qs.exists():
+    if df is None or df.empty:
         return render(request, "coin_prediction.html", {
-            "error": f"No data available for {symbol}. Please try another coin.",
+            "error": f"No data available for {symbol}. Please try again in a moment.",
             "symbol": symbol,
         })
 
-    # Конвертирај во DataFrame
-    data = list(qs.values('timestamp', 'open', 'high', 'low', 'close', 'volume'))
-    df = pd.DataFrame(data)
-
-    # Минимум 50 податоци за LSTM (30 lookback + 20 за train/test)
     if len(df) < 50:
         return render(request, "coin_prediction.html", {
             "error": f"Not enough data for {symbol}. Need at least 50 data points, got {len(df)}.",
@@ -606,13 +599,7 @@ def coin_prediction_view(request, symbol):
             "symbol": symbol,
         })
 def prediction_select_view(request):
-    symbols = (
-        CoinHistory.objects
-        .values_list("symbol", flat=True)
-        .distinct()
-        .order_by("symbol")
-    )
-
+    symbols = list_available_symbols()
     return render(request, "prediction_select.html", {"symbols": symbols})
 
 
