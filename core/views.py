@@ -10,6 +10,7 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import render
 
 from .models import CoinHistory
+from .market_data import get_ohlcv_dataframe, list_available_symbols, fetch_chart_series
 
 API_BASE = "https://api.coingecko.com/api/v3"
 CRYPTOCOMPARE_BASE = "https://min-api.cryptocompare.com/data/v2"
@@ -169,30 +170,38 @@ def fetch_crypto_news(limit=18):
     if cached is not None:
         return cached
 
+    articles = _fetch_news_cryptocompare(limit)
+    if not articles:
+        articles = _fetch_news_newsapi(limit)
+
+    if not articles:
+        stale = cache.get(f"{cache_key}_stale")
+        return stale or []
+
+    cache.set(cache_key, articles, 600)
+    cache.set(f"{cache_key}_stale", articles, 86400)
+    return articles
+
+
+def _fetch_news_cryptocompare(limit):
     params = {
         "lang": "EN",
         "sortOrder": "latest",
         "extraParams": "chartr",
         "api_key": settings.CRYPTOCOMPARE_API_KEY,
     }
-
     try:
         r = requests.get(NEWS_API_URL, params=params, timeout=15)
         r.raise_for_status()
         raw = r.json()
     except requests.RequestException:
-        stale = cache.get(f"{cache_key}_stale")
-        return stale or []
+        return []
 
-    # CryptoCompare returns Data as a list on success, but a dict/string on
-    # rate-limit or error responses — guard against that so the page never 500s.
     data = raw.get("Data", [])
     if not isinstance(data, list):
-        stale = cache.get(f"{cache_key}_stale")
-        return stale or []
+        return []
 
     articles = data[:limit]
-
     for a in articles:
         img = a.get("imageurl") or ""
         if img.startswith("/"):
@@ -213,9 +222,42 @@ def fetch_crypto_news(limit=18):
         source_info = a.get("source_info") or {}
         a["source_name"] = source_info.get("name") or a.get("source") or "Crypto News"
 
-    cache.set(cache_key, articles, 600)
-    cache.set(f"{cache_key}_stale", articles, 86400)
     return articles
+
+
+def _fetch_news_newsapi(limit):
+    """Fallback when CryptoCompare news is rate-limited."""
+    import os
+    key = os.getenv("NEWSAPI_KEY", "a16a798ad7394417a8c1636b26e2ddab")
+    try:
+        r = requests.get(
+            "https://newsapi.org/v2/everything",
+            params={
+                "q": "cryptocurrency OR bitcoin OR ethereum",
+                "sortBy": "publishedAt",
+                "language": "en",
+                "pageSize": limit,
+                "apiKey": key,
+            },
+            timeout=15,
+        )
+        if r.status_code != 200:
+            return []
+        out = []
+        for a in r.json().get("articles", [])[:limit]:
+            pub = a.get("publishedAt") or ""
+            out.append({
+                "title": a.get("title") or "",
+                "body": a.get("description") or "",
+                "url": a.get("url") or "",
+                "image_full": a.get("urlToImage") or "",
+                "source_name": (a.get("source") or {}).get("name") or "News",
+                "published_human": pub[:16].replace("T", " ") if pub else "",
+                "categories": "",
+            })
+        return out
+    except requests.RequestException:
+        return []
 
 # -------------------------------------------------
 #  Views
@@ -294,52 +336,16 @@ def coin_detail(request, coin_id):
 
     coin = ticker_res.json()
 
-    # --- 2) CryptoCompare историски податоци за график ---
+    # --- 2) Chart data (Paprika → CoinGecko → CryptoCompare) ---
     symbol = (coin.get("symbol") or "").upper()
-    labels = []
-    closes = []
+    if days <= 7:
+        label_fmt = "%d %b %H:%M"
+    else:
+        label_fmt = "%d %b %Y"
 
-    if symbol:
-        # за мали периоди → часовни точки, за поголеми → дневни
-        if days <= 7:
-            endpoint = "histohour"
-            limit = days * 24
-            label_fmt = "%d %b %H:%M"   # пример: 12 Mar 14:00
-        else:
-            endpoint = "histoday"
-            limit = days
-            label_fmt = "%d %b %Y"      # пример: 12 Mar 2024
-
-        cc_params = {
-            "fsym": symbol,
-            "tsym": "USD",
-            "limit": limit,
-            "api_key": settings.CRYPTOCOMPARE_API_KEY,
-        }
-
-        cc_res = requests.get(
-            f"{CRYPTOCOMPARE_BASE}/{endpoint}",
-            params=cc_params,
-            timeout=10
-        )
-
-        if cc_res.status_code == 200:
-            cc_data = cc_res.json()
-            points = (
-                cc_data.get("Data", {})
-                .get("Data", [])
-            )
-
-            for p in points:
-                ts = p.get("time")
-                close = p.get("close")
-                if ts is None or close is None:
-                    continue
-
-                dt = datetime.utcfromtimestamp(ts)
-                labels.append(dt.strftime(label_fmt))
-                closes.append(close)
-
+    labels, closes = fetch_chart_series(
+        symbol, paprika_id=coin_id, days=days, label_fmt=label_fmt
+    )
 
     context = {
         "coin": coin,
@@ -360,7 +366,6 @@ def crypto_news(request):
 
 
 from .technical_analysis import calculate_technical_indicators
-from .market_data import get_ohlcv_dataframe, list_available_symbols
 import pandas as pd
 
 

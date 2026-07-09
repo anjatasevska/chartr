@@ -41,6 +41,9 @@
         </div>
         <div class="chart-container">
             <canvas id="priceChart"></canvas>
+            <div id="chartEmpty" class="empty-state" style="display:none;padding:24px;">
+                Chart data is temporarily unavailable. Try another time range or refresh in a minute.
+            </div>
         </div>
     </div>
 
@@ -110,6 +113,7 @@
     let lineColor = coinColors[coinSymbol] || "#6366f1";
 
     if (Array.isArray(labels) && Array.isArray(closes) && labels.length && closes.length) {
+        document.getElementById('chartEmpty').style.display = 'none';
         const ctx = document.getElementById('priceChart').getContext('2d');
         new Chart(ctx, {
             type: 'line',
@@ -154,6 +158,8 @@
                 }
             }
         });
+    } else {
+        document.getElementById('chartEmpty').style.display = 'block';
     }
 </script>
 {% endif %}
