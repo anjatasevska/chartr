@@ -68,4 +68,3 @@ gunicorn chartr.wsgi:application --bind 0.0.0.0:$PORT
 ## Notes
 
 - External APIs: CoinGecko, CoinPaprika, CryptoCompare. Responses are cached where practical.
-- This is a student project. Nothing here is investment advice.
